@@ -26,7 +26,7 @@ enum Commands {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let cli: Cli = Cli::parse();
 
     match cli.command {
         Commands::Run(args) => commands::run::execute(args),
