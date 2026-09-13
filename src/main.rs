@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod utils;
 
+use std::path::PathBuf;
 use clap::{value_parser, Arg, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
 use config::{load_config, ArgType, Config};
 
@@ -48,9 +49,7 @@ fn main() {
             for arg in &generator.args {
                 let arg_name: &'static str = Box::leak(arg.name.clone().into_boxed_str());
                 let arg_type: &'static ArgType = Box::leak(Box::new(arg.arg_type.clone()));
-                let value_name: &'static str = Box::leak(
-                    format!("{}:{}", arg_type.value_name(), arg_name).into_boxed_str()
-                );
+                
 
                 let help_text = match &arg.description {
                     Some(desc) => format!("{desc} [{}]", arg.arg_type.verbose_description()),
@@ -58,14 +57,34 @@ fn main() {
                 };
 
                 let mut clap_arg = Arg::new(arg_name)
-                    .value_name(value_name)
                     .help(help_text);
 
-                clap_arg = match arg.arg_type {
-                    ArgType::Int => clap_arg.value_parser(value_parser!(i64)),
-                    ArgType::Float => clap_arg.value_parser(value_parser!(f64)),
-                    ArgType::String => clap_arg.value_parser(value_parser!(String)),
-                    ArgType::Bool => clap_arg.value_parser(value_parser!(bool)),
+                if let Some(long) = &arg.long {
+                    let long_st: &'static str = Box::leak(long.clone().into_boxed_str());
+                    clap_arg = clap_arg.long(long_st);
+                }
+                if let Some(short) = arg.short {
+                    clap_arg = clap_arg.short(short);
+                }
+
+                let is_named: bool = arg.long.is_some() || arg.short.is_some();
+
+                if is_named && arg.arg_type == ArgType::Bool {
+                    // Named boolean flags (--notag) act as switches
+                    clap_arg = clap_arg.action(clap::ArgAction::SetTrue);
+                } else {
+                    // Options with values (--tag <PATH>) or positional arguments (<N>)
+                    let value_name: &'static str = Box::leak(
+                        format!("{}:{}", arg_type.value_name(), arg_name).into_boxed_str()
+                    );
+                    clap_arg = clap_arg.value_name(value_name);
+                    clap_arg = match arg.arg_type {
+                        ArgType::Int => clap_arg.value_parser(value_parser!(i64)),
+                        ArgType::Float => clap_arg.value_parser(value_parser!(f64)),
+                        ArgType::String => clap_arg.value_parser(value_parser!(String)),
+                        ArgType::Bool => clap_arg.value_parser(value_parser!(bool)),
+                        ArgType::Filepath => clap_arg.value_parser(value_parser!(PathBuf))
+                    };
                 };
 
                 if arg.required {

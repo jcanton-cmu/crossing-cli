@@ -1,6 +1,6 @@
 {
   "sympy": {
-    "script_path": "../crossing_numbers_of_the_complete_graph/builders/sympy_cnf.py",
+    "script_path": "./builders/sympy_cnf.py",
     "cnf_path": "./cnf/sympy.cnf",
     "args": [
       { "name": "N", "type": "int", "required": true },
@@ -8,11 +8,31 @@
     ]
   },
   "mackey": {
-    "script_path": "../crossing_numbers_of_the_complete_graph/builders/hill_cnf.py",
+    "script_path": "./builders/hill_cnf.py",
     "cnf_path": "./cnf/mackey.cnf",
     "args": [
       { "name": "N", "type": "int", "required": true },
-      { "name": "J", "type": "int", "required": false }
+      { "name": "K", "type": "int", "required": true }
+    ]
+  },
+  "mackey_2": {
+    "script_path": "./builders/hill_cnf_2args.py",
+    "cnf_path": "./cnf/mackey_2.cnf",
+    "args": [
+      { "name": "N", "type": "int", "required": true },
+      { "name": "K1", "type": "int", "required": true },
+      { "name": "K2", "type": "int", "required": false }
+    ]
+  },
+  "star": {
+    "script_path": "./builders/encoding/star_cnf.py",
+    "cnf_path": "./cnf/star.cnf",
+    "args": [
+      { "name": "N", "type": "int", "required": true },
+      { "name": "K1", "type": "int", "required": true },
+      { "name": "K2", "type": "int", "required": false },
+      {"name" : "tab", "type": "filepath", "required": false, "short": "t", "long": "tab"},
+      { "name": "notab", "type": "bool", "required": false, "short": "n", "long": "notab"}
     ]
   }
 }

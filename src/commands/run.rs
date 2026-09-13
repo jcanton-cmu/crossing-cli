@@ -2,7 +2,7 @@ use clap::{ArgMatches, Args};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::config::Config;
+use crate::config::{Config, ArgType};
 use crate::utils::{
     ensure_cadical, ensure_kissat, get_solver_bin, run_python_builder, run_solver,
 };
@@ -37,7 +37,26 @@ pub fn execute(args: RunArgs, run_matches: &ArgMatches, config: &Config) {
 
     let mut script_args: Vec<String> = Vec::new();
     for arg_spec in &gen_config.args {
-        if let Some(raw_val) = gen_matches.get_raw(&arg_spec.name) {
+        let is_named = arg_spec.long.is_some() || arg_spec.short.is_some();
+
+        if is_named {
+            let flag_prefix = if let Some(long) = &arg_spec.long {
+                format!("--{long}")
+            } else {
+                format!("-{}", arg_spec.short.unwrap())
+            };
+
+            if arg_spec.arg_type == ArgType::Bool {
+                if gen_matches.get_flag(&arg_spec.name) {
+                    script_args.push(flag_prefix);
+                }
+            } else if let Some(raw_val) = gen_matches.get_raw(&arg_spec.name) {
+                for val in raw_val {
+                    script_args.push(flag_prefix.clone());
+                    script_args.push(val.to_string_lossy().into_owned());
+                }
+            }
+        } else if let Some(raw_val) = gen_matches.get_raw(&arg_spec.name) {
             for val in raw_val {
                 script_args.push(val.to_string_lossy().into_owned());
             }

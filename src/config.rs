@@ -9,6 +9,8 @@ pub enum ArgType {
     Float,
     String,
     Bool,
+    #[serde(alias = "path")]
+    Filepath,
 }
 
 impl ArgType {
@@ -19,6 +21,7 @@ impl ArgType {
             ArgType::Float => "Floating-point number (e.g., 3.14)",
             ArgType::String => "Text string",
             ArgType::Bool => "Boolean value (true/false)",
+            ArgType::Filepath => "File or Directory Path"
         }
     }
 
@@ -29,6 +32,7 @@ impl ArgType {
             ArgType::Float => "FLOAT",
             ArgType::String => "STR",
             ArgType::Bool => "BOOL",
+            ArgType::Filepath => "PATH"
         }
     }
 }
@@ -42,6 +46,8 @@ pub struct ArgConfig {
     pub required: bool,
     /// Optional field to allow custom descriptions in generators.json
     pub description: Option<String>,
+    pub long: Option<String>,
+    pub short: Option<char>
 }
 
 #[derive(Debug, Deserialize, Clone)]
