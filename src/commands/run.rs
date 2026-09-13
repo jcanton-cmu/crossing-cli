@@ -1,16 +1,11 @@
-use clap::{Args, ValueEnum};
+use clap::{ArgMatches, Args};
 use std::fs;
 use std::path::PathBuf;
 
+use crate::config::Config;
 use crate::utils::{
     ensure_cadical, ensure_kissat, get_solver_bin, run_python_builder, run_solver,
 };
-
-#[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
-pub enum IsolateTarget {
-    Sympy,
-    Mackey,
-}
 
 #[derive(Args, Debug)]
 pub struct RunArgs {
@@ -21,54 +16,57 @@ pub struct RunArgs {
     /// Solve using CaDiCaL
     #[arg(short = 'c', long)]
     pub cadical: bool,
-
-    /// Run only the specified python CNF generator
-    #[arg(short = 'i', long, value_enum)]
-    pub isolate: Option<IsolateTarget>,
-
-    /// K_n
-    pub n: u64,
-
-    /// Maximum number of crossings
-    pub k: u64,
 }
 
-pub fn execute(args: RunArgs) {
+pub fn execute(args: RunArgs, run_matches: &ArgMatches, config: &Config) {
     fs::create_dir_all("./cnf").expect("Failed to create ./cnf directory");
     fs::create_dir_all("./out").expect("Failed to create ./out directory");
 
-    let py_sympy = "./builders/sympy_cnf.py";
-    let py_mackey = "./builders/hill_cnf.py";
-    let cnf_sympy = PathBuf::from("./cnf/sympy.cnf");
-    let cnf_mackey = PathBuf::from("./cnf/mackey.cnf");
+    // Extract the invoked subcommand name and its argument matches
+    let (gen_name, gen_matches) = match run_matches.subcommand() {
+        Some((name, matches)) => (name, matches),
+        None => return,
+    };
 
-    let mut cnf_targets = Vec::new();
+    let gen_config = match config.get(gen_name) {
+        Some(cfg) => cfg,
+        None => return,
+    };
 
-    if args.isolate.is_none() || args.isolate == Some(IsolateTarget::Sympy) {
-        println!("[Running] sympy CNF generator");
-        run_python_builder(py_sympy, args.n, args.k, &cnf_sympy);
-        cnf_targets.push(cnf_sympy);
+    println!("[Running] generator: {gen_name}");
+
+    let mut script_args: Vec<String> = Vec::new();
+    for arg_spec in &gen_config.args {
+        if let Some(raw_val) = gen_matches.get_raw(&arg_spec.name) {
+            for val in raw_val {
+                script_args.push(val.to_string_lossy().into_owned());
+            }
+        }
     }
 
-    if args.isolate.is_none() || args.isolate == Some(IsolateTarget::Mackey) {
-        println!("[Running] mackey CNF generator");
-        run_python_builder(py_mackey, args.n, args.k, &cnf_mackey);
-        cnf_targets.push(cnf_mackey);
+    let cnf_path = gen_config
+        .cnf_path
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(format!("./cnf/{gen_name}.cnf")));
+
+    let out_path = gen_config
+        .solver_out_path
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(format!("./out/{gen_name}.out")));
+
+    if let Some(script) = &gen_config.script_path {
+        run_python_builder(script, &script_args, &cnf_path);
     }
 
     if args.kissat {
         ensure_kissat();
         let kissat_bin = get_solver_bin("kissat", "./kissat/build/kissat");
-        for cnf_file in &cnf_targets {
-            run_solver("kissat", &kissat_bin, cnf_file);
-        }
+        run_solver("kissat", &kissat_bin, &cnf_path, &out_path);
     }
 
     if args.cadical {
         ensure_cadical();
         let cadical_bin = get_solver_bin("cadical", "./cadical/build/cadical");
-        for cnf_file in &cnf_targets {
-            run_solver("cadical", &cadical_bin, cnf_file);
-        }
+        run_solver("cadical", &cadical_bin, &cnf_path, &out_path);
     }
 }

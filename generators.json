@@ -1,0 +1,18 @@
+{
+  "sympy": {
+    "script_path": "../crossing_numbers_of_the_complete_graph/builders/sympy_cnf.py",
+    "cnf_path": "./cnf/sympy.cnf",
+    "args": [
+      { "name": "N", "type": "int", "required": true },
+      { "name": "K", "type": "int", "required": true }
+    ]
+  },
+  "mackey": {
+    "script_path": "../crossing_numbers_of_the_complete_graph/builders/hill_cnf.py",
+    "cnf_path": "./cnf/mackey.cnf",
+    "args": [
+      { "name": "N", "type": "int", "required": true },
+      { "name": "J", "type": "int", "required": false }
+    ]
+  }
+}

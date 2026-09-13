@@ -7,30 +7,6 @@ pub fn get_local_solver_path(solver_name: &str) -> PathBuf {
     PathBuf::from(format!("./{solver_name}/build/{solver_name}{EXE_SUFFIX}"))
 }
 
-// pub fn ensure_kissat() {
-//     let local_bin = get_local_solver_path("kissat");
-//     if !command_exists("kissat") && !local_bin.exists() {
-//         println!("Kissat executable not found. Downloading and compiling...");
-//         ensure_tools(&["git", "make", "python3"]);
-
-//         // Executing standard build commands works natively on both macOS and Linux
-//         Command::new("git")
-//             .args(["clone", "https://github.com/arminbiere/kissat.git"])
-//             .status()
-//             .expect("Failed to clone kissat");
-
-//         Command::new("./configure")
-//             .current_dir("./kissat")
-//             .status()
-//             .expect("Failed to configure kissat");
-
-//         Command::new("make")
-//             .current_dir("./kissat")
-//             .status()
-//             .expect("Failed to make kissat");
-//     }
-// }
-
 pub fn ensure_tools(tools: &[&str]) {
     for tool in tools {
         let status = Command::new(tool)
@@ -110,29 +86,29 @@ pub fn get_solver_bin<'a>(cmd_name: &'a str, fallback_path: &'a str) -> &'a str 
     }
 }
 
-pub fn run_python_builder(script: &str, n: u64, k: u64, output_path: &Path) {
+pub fn run_python_builder(script: &Path, args: &[String], output_path: &Path) {
     let out_file = File::create(output_path).expect("Failed to create CNF file");
+    
     Command::new("python3")
-        .args([script, &n.to_string(), &k.to_string()])
+        .arg(script)
+        .args(args)
         .stdout(out_file)
         .status()
         .expect("Failed to execute python builder");
 }
 
-pub fn run_solver(solver_name: &str, solver_bin: &str, cnf_file: &Path) {
-    let base_name = cnf_file.file_stem().unwrap().to_str().unwrap();
-    let out_file_path = format!("./out/{}_{}.out", base_name, solver_name);
-
-    let out_file = File::create(&out_file_path).expect("Failed to create log file");
-    let err_file = out_file.try_clone().expect("Failed to clone file handle");
-
-    let _ = Command::new(solver_bin)
+pub fn run_solver(solver_name: &str, solver_bin: &str, cnf_file: &Path, output_path: &Path) {
+    let out_file_path = output_path.to_string_lossy();
+    let output = Command::new(solver_bin)
         .arg(cnf_file)
-        .stdout(out_file)
-        .stderr(err_file)
-        .status();
+        .output()
+        .expect("Failed to execute solver");
 
-    let content = fs::read_to_string(&out_file_path).unwrap_or_default();
+    let mut log_content = output.stdout.clone();
+    log_content.extend_from_slice(&output.stderr);
+    fs::write(output_path, log_content).expect("Failed to create log file");
+
+    let content = String::from_utf8_lossy(&output.stdout);
     let sat_status = content
         .lines()
         .find(|line| line.starts_with("s "))
